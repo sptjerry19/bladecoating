@@ -24,7 +24,7 @@ int buttonState = 0, prevButtonState = 0;
 
 // Menu
 int cursorPosition = 0;
-String mainMenu[] = {"Chinh Thong So", "Bat Dau Dong Co"};
+String mainMenu[] = {"Chinh Thong So", "Bat Dau Dong Co", "Chay Theo Vong"};
 int menuCount = sizeof(mainMenu) / sizeof(mainMenu[0]);
 
 // Thông số động cơ
@@ -102,6 +102,8 @@ void executeMenuOption() {
     adjustMotorSettings();
   } else if (cursorPosition == 1) {
     runMotor();
+  } else if (cursorPosition == 2) {
+    runMotorByRevolution();
   }
 }
 
@@ -191,3 +193,80 @@ void runMotor() {
   delay(1000);
   displayMainMenu();
 }
+
+
+// Chạy động cơ theo số vòng quay
+void runMotorByRevolution() {
+  lcd.clear();
+  lcd.print("Nhap so vong quay");
+  lcd.setCursor(0, 1);
+  lcd.print("Doi nut de OK");
+
+  int revolutions = 1; // Số vòng quay mặc định
+  int stepsPerRevolution = 200; // Số bước trên mỗi vòng quay (thay đổi tùy loại động cơ)
+
+  while (true) {
+    joystickX = analogRead(JOYSTICK_X);
+    joystickY = analogRead(JOYSTICK_Y);
+    buttonState = digitalRead(BUTTON_PIN);
+
+    // Tăng số vòng quay
+    if (joystickY < 400) {
+      revolutions++;
+      if (revolutions > 100) revolutions = 100; // Giới hạn tối đa 100 vòng
+      updateRevolutionsDisplay(revolutions);
+    }
+
+    // Giảm số vòng quay
+    if (joystickY > 600) {
+      revolutions--;
+      if (revolutions < 1) revolutions = 1; // Giới hạn tối thiểu 1 vòng
+      updateRevolutionsDisplay(revolutions);
+    }
+
+    // Xác nhận nhập
+    if (buttonState == LOW && prevButtonState == HIGH) {
+      break;
+    }
+    prevButtonState = buttonState;
+  }
+
+  // Tính tổng số bước
+  int totalSteps = revolutions * stepsPerRevolution;
+
+  // Hiển thị và chạy động cơ
+  lcd.clear();
+  lcd.print("Dang chay...");
+  lcd.setCursor(0, 1);
+  lcd.print("Vong: ");
+  lcd.print(revolutions);
+
+  stepper.moveTo(totalSteps); // Quay số bước đã tính toán
+
+  while (stepper.distanceToGo() != 0) {
+    stepper.run(); // Thực thi chuyển động
+
+    buttonState = digitalRead(BUTTON_PIN);
+    if (buttonState == LOW) {
+      stepper.stop(); // Dừng động cơ
+      break;
+    }
+  }
+
+  lcd.clear();
+  lcd.print("Hoan tat");
+  delay(1000);
+  displayMainMenu();
+}
+
+// Cập nhật hiển thị số vòng quay trên LCD
+void updateRevolutionsDisplay(int revolutions) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("So vong: ");
+  lcd.print(revolutions);
+  lcd.setCursor(0, 1);
+  lcd.print("Doi nut de OK");
+  delay(200);
+}
+
