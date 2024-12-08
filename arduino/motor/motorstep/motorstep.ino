@@ -1,6 +1,7 @@
 #include <AccelStepper.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include "control.h"
 
 // Chân joystick
 #define JOYSTICK_X A0
@@ -57,6 +58,13 @@ void loop() {
   joystickX = analogRead(JOYSTICK_X);
   joystickY = analogRead(JOYSTICK_Y);
   buttonState = digitalRead(BUTTON_PIN);
+
+  // Đọc lệnh từ ESP8266
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    handleIoTCommand(command);
+  }
 
   // Điều hướng menu
   handleJoystick();
@@ -268,5 +276,24 @@ void updateRevolutionsDisplay(int revolutions) {
   lcd.setCursor(0, 1);
   lcd.print("Doi nut de OK");
   delay(200);
+}
+
+// Xử lý lệnh IoT
+void handleIoTCommand(String command) {
+  if (command == "start") {
+    stepper.move(10000); // Start the motor
+  } else if (command == "stop") {
+    stepper.stop(); // Stop the motor
+  } else if (command == "reverse") {
+    motorDirection *= -1;
+    stepper.setSpeed(motorSpeed * motorDirection);
+  } else if (command == "speed_up") {
+    motorSpeed += 100;
+    stepper.setMaxSpeed(motorSpeed);
+  } else if (command == "speed_down") {
+    motorSpeed -= 100;
+    if (motorSpeed < 100) motorSpeed = 100;
+    stepper.setMaxSpeed(motorSpeed);
+  }
 }
 
