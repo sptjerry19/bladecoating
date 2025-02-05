@@ -15,6 +15,18 @@ ESP8266WebServer server(80);
 // Các lệnh điều khiển
 String command = "";
 
+// Biến lưu trữ tốc độ motor nhận được
+String motorSpeed = "0.0";
+
+// Hàm xử lý trang chủ
+void handleRoot() {
+  String html = "<html><head><meta http-equiv='refresh' content='2'/><title>Motor Speed</title></head><body>";
+  html += "<h1>Motor Speed Monitor</h1>";
+  html += "<p>Current Speed: " + motorSpeed + " steps/s</p>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
 // Thiết lập kết nối WiFi (STA + AP)
 void setup() {
   Serial.begin(9600);
@@ -47,305 +59,28 @@ void setup() {
 
   // Định nghĩa các route
   server.on("/", handleRoot);
-  server.on("/control", handleControl);
+  // server.on("/control", handleControl);
 
   // Bắt đầu server
   server.begin();
   Serial.println("Server bắt đầu hoạt động...");
 }
 
-void loop() {
-  server.handleClient(); // Xử lý yêu cầu từ client
-}
-
 // Hiển thị giao diện IoT
-void handleRoot() {
-  String html = R"rawliteral(
-<!DOCTYPE html>
-<html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Điều khiển động cơ bước</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f4f4f9;
-        color: #333;
-        text-align: center;
-      }
-
-      h1 {
-        margin: 20px 0;
-        font-size: 24px;
-        color: #2c3e50;
-      }
-
-      .container {
-        padding: 20px;
-        max-width: 500px;
-        margin: auto;
-        background: #ffffff;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        border-radius: 10px;
-      }
-
-      .button-group {
-        margin: 15px 0;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      button {
-        padding: 10px 15px;
-        margin: 5px;
-        font-size: 16px;
-        color: #fff;
-        background-color: #3498db;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-
-      button:hover {
-        background-color: #2980b9;
-      }
-
-      .input-group {
-        margin: 15px 0;
-      }
-
-      .input-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-size: 16px;
-        font-weight: bold;
-        text-align: left;
-      }
-
-      .input-group input {
-        width: calc(100% - 20px);
-        padding: 10px;
-        font-size: 16px;
-        margin: 0 auto;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        display: block;
-      }
-
-      .info {
-        margin-top: 20px;
-        font-size: 18px;
-        text-align: left;
-      }
-
-      .info div {
-        margin: 10px 0;
-        padding: 10px;
-        background: #ecf0f1;
-        border-radius: 5px;
-      }
-
-      @media (max-width: 768px) {
-        .container {
-          padding: 15px;
-        }
-
-        button {
-          font-size: 14px;
-          padding: 10px;
-        }
-
-        .info div {
-          font-size: 16px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Điều khiển động cơ bước</h1>
-
-      <!-- Nhập quãng đường và tốc độ -->
-      <div class="input-group">
-        <label for="distanceInput">Nhập quãng đường (mm):</label>
-        <input
-          type="number"
-          id="distanceInput"
-          min="0"
-          placeholder="Nhập quãng đường..."
-        />
-      </div>
-
-      <div class="input-group">
-        <label for="speedInput">Nhập tốc độ (mm/s):</label>
-        <input
-          type="number"
-          id="speedInput"
-          min="0"
-          placeholder="Nhập tốc độ..."
-        />
-      </div>
-
-      <button onclick="setParameters()">Cập nhật thông số</button>
-
-      <div class="button-group">
-        <button onclick="startTimer()">Bắt đầu</button>
-        <button onclick="stopTimer()">Dừng</button>
-      </div>
-
-      <!-- Hiển thị thông tin -->
-      <div class="info">
-        <h2>Thông số động cơ</h2>
-        <div><strong>Tốc độ:</strong> <span id="speed">0</span> mm/s</div>
-        <div><strong>Quãng đường:</strong> <span id="distance">0</span> mm</div>
-        <div>
-          <strong>Gia tốc:</strong> <span id="acceleration">0</span> mm/s²
-        </div>
-        <div>
-          <strong>Thời gian hoàn thành:</strong> <span id="time">0</span> s
-        </div>
-      </div>
-    </div>
-
-    <script>
-      // Thông số vít-me
-      const leadScrewPitch = 5; // Độ dày vít-me (mm/rev)
-      const stepsPerRevolution = 200; // Số bước mỗi vòng (step/rev)
-      const microstep = 16; // Vi bước
-
-      let speed = 0; // Tốc độ (mm/s)
-      let acceleration = 0; // Gia tốc (mm/s²)
-      let distance = 0; // Quãng đường (mm)
-      let time = 0; // Thời gian hoàn thành (s)
-      let countdown; // Biến lưu trữ thời gian đếm ngược
-
-      function calculateParameters() {
-        const inputDistance = parseFloat(
-          document.getElementById("distanceInput").value
-        );
-        const inputSpeed = parseFloat(
-          document.getElementById("speedInput").value
-        );
-
-        if (
-          isNaN(inputDistance) ||
-          inputDistance <= 0 ||
-          isNaN(inputSpeed) ||
-          inputSpeed <= 0
-        ) {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
-          return;
-        }
-
-        distance = inputDistance;
-        speed = inputSpeed;
-
-        // Tính gia tốc và thời gian hoàn thành
-        acceleration = (speed * speed) / (2 * distance); // Gia tốc (mm/s²) = v² / (2 * d)
-        time = distance / speed; // Thời gian (s)
-
-        updateDisplay();
-      }
-
-      function updateDisplay() {
-        document.getElementById("speed").innerText = speed.toFixed(2);
-        document.getElementById("distance").innerText = distance.toFixed(2);
-        document.getElementById("acceleration").innerText =
-          acceleration.toFixed(2);
-        document.getElementById("time").innerText = time.toFixed(2);
-      }
-
-      function setParameters() {
-        calculateParameters();
-        fetchParameters();
-      }
-
-      function startTimer() {
-        if (countdown) clearInterval(countdown);
-        let remainingTime = time;
-
-        sendCommand("start");
-
-        countdown = setInterval(function () {
-          remainingTime -= 1;
-          document.getElementById("time").innerText = remainingTime.toFixed(2);
-
-          if (remainingTime <= 0) {
-            clearInterval(countdown);
-            alert("Hoàn thành!");
-          }
-        }, 1000);
-      }
-
-      function stopTimer() {
-        if (countdown) clearInterval(countdown);
-        document.getElementById("time").innerText = time.toFixed(2);
-        sendCommand("stop");
-      }
-
-      //   gửi dữ liệu các tham số
-      function fetchParameters() {
-        const distance = document.getElementById("distanceInput").value;
-        const speed = document.getElementById("speedInput").value;
-
-        if (distance && speed) {
-          const url = `/control?distance=${distance}&speed=${speed}`;
-
-          // Gửi dữ liệu tới ESP8266 thông qua HTTP request
-          fetch(url)
-            .then((response) => response.text())
-            .then((data) => {
-              console.log(data); // Hiển thị phản hồi từ ESP8266
-            })
-            .catch((error) => {
-              console.error("Lỗi khi gửi yêu cầu:", error);
-            });
-        } else {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
-        }
-      }
-
-      //   send command
-      function sendCommand(cmd) {
-        fetch("/control?command=" + cmd)
-          .then((response) => response.text())
-          .then((data) => alert(data))
-          .catch((err) => alert("Lỗi: " + err));
-      }
-    </script>
-  </body>
-</html>
 
 
-  )rawliteral";
-  server.send(200, "text/html", html);
-}
-
-// Xử lý yêu cầu điều khiển
-void handleControl() {
-  if (server.hasArg("command")) {
-    command = server.arg("command");
-    Serial.println(command); // Gửi lệnh tới Arduino Uno
-    server.send(200, "text/plain", "Đã gửi lệnh: " + command);
-  } else if (server.hasArg("distance") && server.hasArg("speed")) {
-    String distance = server.arg("distance");
-    String speed = server.arg("speed");
-    
-    // Gửi dữ liệu tới Arduino qua cổng serial
-    Serial.print("D:");  // Thêm ký hiệu để nhận biết dữ liệu
-    Serial.print(distance);
-    Serial.print(",");
-    Serial.print("S:");
-    Serial.print(speed);
-    Serial.println();
-
-    server.send(200, "text/plain", "Đã gửi lệnh: " + distance + "mm, " + speed + "mm/s");
-  } else {
-    server.send(400, "text/plain", "Lỗi: Không tìm thấy các tham số 'distance' và 'speed'.");
+void loop() {
+  server.handleClient();
+  
+  // Kiểm tra dữ liệu nhận từ Arduino qua Serial
+  if (Serial.available()) {
+    String data = Serial.readStringUntil('\n');
+    // Giả sử dữ liệu có định dạng: "Speed:xxx"
+    if (data.startsWith("Speed:")) {
+      motorSpeed = data.substring(6); // Cắt phần sau "Speed:"
+      motorSpeed.trim();
+      Serial.print("Received speed: ");
+      Serial.println(motorSpeed);
+    }
   }
 }
