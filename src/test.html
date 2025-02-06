@@ -23,7 +23,7 @@
       .container {
         padding: 20px;
         max-width: 500px;
-        margin: auto;
+        margin: 30px auto;
         background: #ffffff;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         border-radius: 10px;
@@ -133,6 +133,7 @@
       <div class="button-group">
         <button onclick="startTimer()">Bắt đầu</button>
         <button onclick="stopTimer()">Dừng</button>
+        <button onclick="resetSystem()">Reset</button>
       </div>
 
       <!-- Hiển thị thông tin -->
@@ -147,8 +148,22 @@
           <strong>Thời gian hoàn thành:</strong> <span id="time">0</span> s
         </div>
       </div>
+
+      <!-- Biểu đồ giám sát -->
+      <div class="chart-container">
+        <h2>Biểu đồ giám sát</h2>
+        <canvas id="monitoringChart" width="400" height="200"></canvas>
+      </div>
+
+      <!-- Lưu trữ dữ liệu -->
+      <div class="data-container">
+        <h2>Lưu trữ dữ liệu</h2>
+        <button onclick="exportData()">Xuất dữ liệu</button>
+        <div id="dataLogs"></div>
+      </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       // Thông số vít-me
       const leadScrewPitch = 5; // Độ dày vít-me (mm/rev)
@@ -160,6 +175,42 @@
       let distance = 0; // Quãng đường (mm)
       let time = 0; // Thời gian hoàn thành (s)
       let countdown; // Biến lưu trữ thời gian đếm ngược
+      let dataLogs = []; // Lưu trữ dữ liệu
+      let monitoringChart; // Biểu đồ giám sát
+
+      // Khởi tạo biểu đồ
+      const ctx = document.getElementById("monitoringChart").getContext("2d");
+      monitoringChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Tốc độ (mm/s)",
+              data: [],
+              borderColor: "#3498db",
+              fill: false,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: "Thời gian (s)",
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Tốc độ (mm/s)",
+              },
+            },
+          },
+        },
+      });
 
       function calculateParameters() {
         const inputDistance = parseFloat(
@@ -212,6 +263,18 @@
           remainingTime -= 1;
           document.getElementById("time").innerText = remainingTime.toFixed(2);
 
+          // Cập nhật biểu đồ
+          monitoringChart.data.labels.push(time - remainingTime);
+          monitoringChart.data.datasets[0].data.push(speed);
+          monitoringChart.update();
+
+          // Lưu dữ liệu
+          dataLogs.push({
+            time: time - remainingTime,
+            speed: speed,
+            distance: distance,
+          });
+
           if (remainingTime <= 0) {
             clearInterval(countdown);
             alert("Hoàn thành!");
@@ -225,7 +288,21 @@
         sendCommand("stop");
       }
 
-      //   gửi dữ liệu các tham số
+      function resetSystem() {
+        if (countdown) clearInterval(countdown);
+        speed = 0;
+        distance = 0;
+        time = 0;
+        acceleration = 0;
+        updateDisplay();
+        monitoringChart.data.labels = [];
+        monitoringChart.data.datasets[0].data = [];
+        monitoringChart.update();
+        dataLogs = [];
+        document.getElementById("dataLogs").innerHTML = "";
+        sendCommand("reset");
+      }
+
       function fetchParameters() {
         const distance = document.getElementById("distanceInput").value;
         const speed = document.getElementById("speedInput").value;
@@ -247,12 +324,23 @@
         }
       }
 
-      //   send command
       function sendCommand(cmd) {
         fetch("/control?command=" + cmd)
           .then((response) => response.text())
           .then((data) => alert(data))
           .catch((err) => alert("Lỗi: " + err));
+      }
+
+      function exportData() {
+        const blob = new Blob([JSON.stringify(dataLogs, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "data_logs.json";
+        a.click();
+        URL.revokeObjectURL(url);
       }
     </script>
   </body>
