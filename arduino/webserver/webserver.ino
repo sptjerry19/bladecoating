@@ -1,5 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include "control.h"
 
 // Thông tin WiFi (Station Mode - Kết nối WiFi hiện có)
 const char* ssid_sta = "cheese";
@@ -20,11 +21,13 @@ String motorSpeed = "0.0";
 
 // Hàm xử lý trang chủ
 void handleRoot() {
-  String html = "<html><head><meta http-equiv='refresh' content='2'/><title>Motor Speed</title></head><body>";
-  html += "<h1>Motor Speed Monitor</h1>";
-  html += "<p>Current Speed: " + motorSpeed + " steps/s</p>";
-  html += "</body></html>";
-  server.send(200, "text/html", html);
+  // String html = "<html><head><meta http-equiv='refresh' content='2'/><title>Motor Speed</title></head><body>";
+  // html += "<h1>Motor Speed Monitor</h1>";
+  // html += "<p>Current Speed: " + motorSpeed + " steps/s</p>";
+  // html += "</body></html>";
+  // server.send(200, "text/html", html);
+
+  server.send(200, "text/html", htmlControl);
 }
 
 // Thiết lập kết nối WiFi (STA + AP)
@@ -72,15 +75,14 @@ void setup() {
 void loop() {
   server.handleClient();
   
-  // Kiểm tra dữ liệu nhận từ Arduino qua Serial
+  // Giả sử bạn đọc dữ liệu JSON từ Arduino qua Serial
   if (Serial.available()) {
-    String data = Serial.readStringUntil('\n');
-    // Giả sử dữ liệu có định dạng: "Speed:xxx"
-    if (data.startsWith("Speed:")) {
-      motorSpeed = data.substring(6); // Cắt phần sau "Speed:"
-      motorSpeed.trim();
-      Serial.print("Received speed: ");
-      Serial.println(motorSpeed);
+    // Đọc dữ liệu đến khi có dấu kết thúc (ví dụ: newline)
+    String line = Serial.readStringUntil('\n');
+    // Nếu dòng chứa dữ liệu JSON, cập nhật biến motorData
+    if (line.startsWith("[")) {
+      motorData = line;
+      Serial.println("Cập nhật motorData: " + motorData);
     }
   }
 }
