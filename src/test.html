@@ -48,13 +48,13 @@
       }
       .input-group {
         margin: 15px 0;
+        text-align: left;
       }
       .input-group label {
         display: block;
         margin-bottom: 5px;
         font-size: 16px;
         font-weight: bold;
-        text-align: left;
       }
       .input-group input {
         width: calc(100% - 20px);
@@ -64,6 +64,21 @@
         border: 1px solid #ccc;
         border-radius: 5px;
         display: block;
+      }
+      .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px; /* Khoảng cách giữa các lựa chọn */
+      }
+
+      .radio-group label {
+        display: flex;
+        align-items: center;
+        gap: 8px; /* Khoảng cách giữa input và chữ */
+      }
+
+      .radio-group input {
+        margin: 0;
       }
       .info {
         margin-top: 20px;
@@ -101,7 +116,7 @@
     <div class="container">
       <h1>Điều khiển động cơ bước</h1>
 
-      <!-- Nhập quãng đường và tốc độ -->
+      <!-- Nhập quãng đường -->
       <div class="input-group">
         <label for="distanceInput">Nhập quãng đường (mm):</label>
         <input
@@ -112,13 +127,48 @@
         />
       </div>
 
-      <div class="input-group">
+      <!-- Chọn chế độ tính: theo tốc độ hoặc theo thời gian -->
+      <div class="radio-group">
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="speed"
+            checked
+            onchange="toggleMode(this.value)"
+          />
+          Tính theo tốc độ
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="time"
+            onchange="toggleMode(this.value)"
+          />
+          Tính theo thời gian hoàn thành
+        </label>
+      </div>
+
+      <!-- Nhập tốc độ (mm/s) -->
+      <div class="input-group" id="speedInputContainer">
         <label for="speedInput">Nhập tốc độ (mm/s):</label>
         <input
           type="number"
           id="speedInput"
           min="0"
           placeholder="Nhập tốc độ..."
+        />
+      </div>
+
+      <!-- Nhập thời gian hoàn thành (s) -->
+      <div class="input-group" id="timeInputContainer" style="display: none">
+        <label for="timeInput">Nhập thời gian hoàn thành (s):</label>
+        <input
+          type="number"
+          id="timeInput"
+          min="0"
+          placeholder="Nhập thời gian hoàn thành..."
         />
       </div>
 
@@ -146,7 +196,7 @@
       <!-- Biểu đồ giám sát -->
       <div class="chart-container">
         <h2>Biểu đồ giám sát</h2>
-        <canvas id="monitoringChart" width="400" height="200"></canvas>
+        <canvas id="monitoringChart" width="500" height="300"></canvas>
       </div>
 
       <!-- Lưu trữ dữ liệu -->
@@ -157,12 +207,11 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      // Thông số vít-me
+      // Thông số vít-mê
       const leadScrewPitch = 5; // mm/rev
-      const stepsPerRevolution = 200; // step/rev (ví dụ; nếu cần có thể thay đổi)
-      const microstep = 16; // vi bước (nếu sử dụng)
+      const stepsPerRevolution = 200; // step/rev
+      const microstep = 16; // vi bước
 
       let speed = 0; // mm/s
       let acceleration = 0; // mm/s²
@@ -170,68 +219,66 @@
       let time = 0; // giây
       let countdown; // biến đếm ngược
       let dataLogs = []; // lưu trữ dữ liệu
-      let monitoringChart; // biến biểu đồ
 
-      // Khởi tạo biểu đồ với Chart.js
-      const ctx = document.getElementById("monitoringChart").getContext("2d");
-      monitoringChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "Tốc độ (mm/s)",
-              data: [],
-              borderColor: "#3498db",
-              fill: false,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Thời gian (s)",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: "Tốc độ (mm/s)",
-              },
-            },
-          },
-        },
-      });
+      // Dữ liệu cho biểu đồ
+      let chartData = {
+        times: [],
+        speeds: [],
+      };
 
-      // Tính toán thông số động cơ
+      // Biến lưu chế độ hiện tại: "speed" hoặc "time"
+      let selectedMode = "speed";
+
+      // Hàm chuyển đổi giữa các chế độ nhập
+      function toggleMode(mode) {
+        selectedMode = mode;
+        if (mode === "speed") {
+          document.getElementById("speedInputContainer").style.display =
+            "block";
+          document.getElementById("timeInputContainer").style.display = "none";
+        } else {
+          document.getElementById("speedInputContainer").style.display = "none";
+          document.getElementById("timeInputContainer").style.display = "block";
+        }
+      }
+
+      // Tính toán thông số động cơ dựa trên input và chế độ được chọn
       function calculateParameters() {
         const inputDistance = parseFloat(
           document.getElementById("distanceInput").value
         );
-        const inputSpeed = parseFloat(
-          document.getElementById("speedInput").value
-        );
-        if (
-          isNaN(inputDistance) ||
-          inputDistance <= 0 ||
-          isNaN(inputSpeed) ||
-          inputSpeed <= 0
-        ) {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
-          return;
+        if (isNaN(inputDistance) || inputDistance <= 0) {
+          alert("Vui lòng nhập quãng đường hợp lệ.");
+          return false;
         }
         distance = inputDistance;
-        speed = inputSpeed;
-        // Tính gia tốc và thời gian hoàn thành
+        if (selectedMode === "speed") {
+          const inputSpeed = parseFloat(
+            document.getElementById("speedInput").value
+          );
+          if (isNaN(inputSpeed) || inputSpeed <= 0) {
+            alert("Vui lòng nhập tốc độ hợp lệ.");
+            return false;
+          }
+          speed = inputSpeed;
+          time = distance / speed;
+        } else {
+          const inputTime = parseFloat(
+            document.getElementById("timeInput").value
+          );
+          if (isNaN(inputTime) || inputTime <= 0) {
+            alert("Vui lòng nhập thời gian hoàn thành hợp lệ.");
+            return false;
+          }
+          time = inputTime;
+          speed = distance / time;
+        }
         acceleration = (speed * speed) / (2 * distance);
-        time = distance / speed;
         updateDisplay();
+        return true;
       }
 
-      // Cập nhật hiển thị thông số lên trang
+      // Cập nhật thông số hiển thị trên trang
       function updateDisplay() {
         document.getElementById("speed").innerText = speed.toFixed(2);
         document.getElementById("distance").innerText = distance.toFixed(2);
@@ -240,10 +287,157 @@
         document.getElementById("time").innerText = time.toFixed(2);
       }
 
-      // Gọi tính toán và gửi thông số đến ESP8266
+      // Gọi tính toán và gửi thông số đến ESP8266 (giả lập)
       function setParameters() {
-        calculateParameters();
-        fetchParameters();
+        if (calculateParameters()) {
+          fetchParameters();
+        }
+      }
+
+      // Vẽ biểu đồ với các giá trị trên trục x và y
+      function drawChart() {
+        const canvas = document.getElementById("monitoringChart");
+        if (!canvas.getContext) return;
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+        // Xóa canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Định nghĩa lề cho biểu đồ
+        const margin = { top: 20, right: 40, bottom: 40, left: 50 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        // Vẽ trục y và trục x
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        // Trục y
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top);
+        ctx.lineTo(margin.left, margin.top + chartHeight);
+        ctx.stroke();
+        // Trục x
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top + chartHeight);
+        ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
+        ctx.stroke();
+
+        // --- Vẽ các dấu tick và nhãn trên trục y (tốc độ) ---
+        const maxSpeed = Math.max(...chartData.speeds, speed * 2);
+        const yTickCount = 5;
+        ctx.fillStyle = "#333";
+        ctx.font = "12px Arial";
+        for (let i = 0; i <= yTickCount; i++) {
+          const yVal = (maxSpeed / yTickCount) * i;
+          const yPos =
+            margin.top + chartHeight - (yVal / maxSpeed) * chartHeight;
+          // Vẽ dấu tick bên trái trục
+          ctx.beginPath();
+          ctx.moveTo(margin.left - 5, yPos);
+          ctx.lineTo(margin.left, yPos);
+          ctx.stroke();
+          // Vẽ đường lưới ngang (tùy chọn)
+          ctx.strokeStyle = "#ccc";
+          ctx.beginPath();
+          ctx.moveTo(margin.left, yPos);
+          ctx.lineTo(margin.left + chartWidth, yPos);
+          ctx.stroke();
+          ctx.strokeStyle = "#333";
+          // Vẽ nhãn
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(yVal.toFixed(1), margin.left - 8, yPos);
+        }
+
+        // --- Vẽ các dấu tick và nhãn trên trục x (thời gian) ---
+        const maxTime =
+          time > 0
+            ? time
+            : chartData.times.length > 0
+            ? chartData.times[chartData.times.length - 1]
+            : 1;
+        const xTickCount = 5;
+        for (let i = 0; i <= xTickCount; i++) {
+          const xVal = (maxTime / xTickCount) * i;
+          const xPos = margin.left + (chartWidth / xTickCount) * i;
+          // Vẽ dấu tick bên dưới trục
+          ctx.beginPath();
+          ctx.moveTo(xPos, margin.top + chartHeight);
+          ctx.lineTo(xPos, margin.top + chartHeight + 5);
+          ctx.stroke();
+          // Vẽ đường lưới dọc (tùy chọn)
+          ctx.strokeStyle = "#ccc";
+          ctx.beginPath();
+          ctx.moveTo(xPos, margin.top);
+          ctx.lineTo(xPos, margin.top + chartHeight);
+          ctx.stroke();
+          ctx.strokeStyle = "#333";
+          // Vẽ nhãn
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(xVal.toFixed(1), xPos, margin.top + chartHeight + 8);
+        }
+
+        // --- Vẽ đường biểu đồ nếu có đủ dữ liệu ---
+        if (chartData.times.length < 2) return;
+        ctx.beginPath();
+        const n = chartData.times.length;
+        for (let i = 0; i < n; i++) {
+          // Vị trí x theo tỷ lệ thời gian
+          const x = margin.left + (chartData.times[i] / maxTime) * chartWidth;
+          // Vị trí y theo tỷ lệ tốc độ
+          const y =
+            margin.top +
+            chartHeight -
+            (chartData.speeds[i] / maxSpeed) * chartHeight;
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.strokeStyle = "#3498db";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Vẽ các điểm dữ liệu
+        for (let i = 0; i < n; i++) {
+          const x = margin.left + (chartData.times[i] / maxTime) * chartWidth;
+          const y =
+            margin.top +
+            chartHeight -
+            (chartData.speeds[i] / maxSpeed) * chartHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fillStyle = "#3498db";
+          ctx.fill();
+        }
+      }
+
+      // Hàm gửi dữ liệu đến API POST sau khi chạy xong
+      function postDataToServer() {
+        // Chuẩn bị body của POST request theo cấu trúc yêu cầu
+        const postBody = {
+          data: dataLogs, // dataLogs là mảng chứa dữ liệu các mẫu đã thu thập
+        };
+
+        fetch("https://jerry-roommate-app.click/api/v1/motor", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(postBody),
+        })
+          .then((response) => response.json())
+          .then((result) => {
+            console.log("API response:", result);
+            alert("Gửi dữ liệu lên server thành công!");
+          })
+          .catch((error) => {
+            console.error("Error posting data:", error);
+            alert("Gửi dữ liệu gặp lỗi!");
+          });
       }
 
       // Bắt đầu chuyển động và cập nhật biểu đồ theo thời gian
@@ -254,10 +448,10 @@
         countdown = setInterval(function () {
           remainingTime -= 1;
           document.getElementById("time").innerText = remainingTime.toFixed(2);
-          // Cập nhật biểu đồ với giá trị tốc độ hiện tại
-          monitoringChart.data.labels.push(time - remainingTime);
-          monitoringChart.data.datasets[0].data.push(speed);
-          monitoringChart.update();
+          // Cập nhật dữ liệu cho biểu đồ
+          chartData.times.push(time - remainingTime);
+          chartData.speeds.push(speed);
+          drawChart();
           // Lưu trữ dữ liệu
           dataLogs.push({
             time: time - remainingTime,
@@ -267,6 +461,9 @@
           if (remainingTime <= 0) {
             clearInterval(countdown);
             alert("Hoàn thành!");
+
+            // Sau khi hoàn thành, gọi API POST để gửi dữ liệu lên server
+            postDataToServer();
           }
         }, 1000);
       }
@@ -284,20 +481,20 @@
         time = 0;
         acceleration = 0;
         updateDisplay();
-        monitoringChart.data.labels = [];
-        monitoringChart.data.datasets[0].data = [];
-        monitoringChart.update();
+        chartData.times = [];
+        chartData.speeds = [];
+        drawChart();
         dataLogs = [];
         document.getElementById("dataLogs").innerHTML = "";
         sendCommand("reset");
       }
 
-      // Gửi thông số (quãng đường và tốc độ) đến ESP8266 qua HTTP request
+      // Gửi thông số đến ESP8266 (giả lập)
       function fetchParameters() {
-        const distance = document.getElementById("distanceInput").value;
-        const speed = document.getElementById("speedInput").value;
-        if (distance && speed) {
-          const url = `/control?distance=${distance}&speed=${speed}`;
+        const distanceValue = document.getElementById("distanceInput").value;
+        // Lưu ý: tốc độ hoặc thời gian đã được tính trong calculateParameters()
+        if (distanceValue) {
+          const url = `/control?distance=${distanceValue}&speed=${speed}`;
           fetch(url)
             .then((response) => response.text())
             .then((data) => {
@@ -307,11 +504,11 @@
               console.error("Lỗi khi gửi yêu cầu:", error);
             });
         } else {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
+          alert("Vui lòng nhập quãng đường hợp lệ.");
         }
       }
 
-      // Gửi lệnh điều khiển đến ESP8266 (start, stop, reset, …)
+      // Gửi lệnh điều khiển đến ESP8266 (start, stop, reset,...)
       function sendCommand(cmd) {
         fetch("/control?command=" + cmd)
           .then((response) => response.text())
@@ -335,14 +532,15 @@
       // -----------------------------
       // CHỨC NĂNG LẤY DỮ LIỆU TỪ ARDUINO (ESP8266 trả về JSON)
       // -----------------------------
-      function updateChart(dataArray) {
-        monitoringChart.data.labels = [];
-        monitoringChart.data.datasets[0].data = [];
+      function updateChartWithData(dataArray) {
+        // Giả sử dataArray là mảng đối tượng có thuộc tính time và speed
+        chartData.times = [];
+        chartData.speeds = [];
         dataArray.forEach((item) => {
-          monitoringChart.data.labels.push(item.time);
-          monitoringChart.data.datasets[0].data.push(item.speed);
+          chartData.times.push(item.time);
+          chartData.speeds.push(item.speed);
         });
-        monitoringChart.update();
+        drawChart();
       }
 
       function fetchData() {
@@ -350,7 +548,7 @@
           .then((response) => response.json())
           .then((data) => {
             console.log("Dữ liệu nhận từ Arduino:", data);
-            updateChart(data);
+            updateChartWithData(data);
           })
           .catch((err) => console.error("Lỗi khi lấy dữ liệu:", err));
       }
