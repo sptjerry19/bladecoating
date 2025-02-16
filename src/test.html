@@ -172,7 +172,11 @@
         />
       </div>
 
-      <button onclick="setParameters()">Cập nhật thông số</button>
+      <div class="button-group">
+        <button onclick="backward()">Lùi</button>
+        <button onclick="setParameters()">Cập nhật thông số</button>
+        <button onclick="forward()">Tiến</button>
+      </div>
 
       <div class="button-group">
         <button onclick="startTimer()">Bắt đầu</button>
@@ -438,6 +442,16 @@
             console.error("Error posting data:", error);
             alert("Gửi dữ liệu gặp lỗi!");
           });
+      }
+
+      // gửi chuyển động "tiến"
+      function forward() {
+        sendCommand("forward");
+      }
+
+      // gửi chuyển động "lùi"
+      function backward() {
+        sendCommand("backward");
       }
 
       // Bắt đầu chuyển động và cập nhật biểu đồ theo thời gian

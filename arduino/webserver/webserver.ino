@@ -1,188 +1,27 @@
-#include <AccelStepper.h>
-#include <LiquidCrystal_I2C.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 
-// ====================
-// PHẦN 1: Điều khiển động cơ bước và thu thập dữ liệu
-// ====================
-
-// Cấu hình LCD I2C (địa chỉ 0x27, kích thước 16x2)
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-
-// Định nghĩa chân cho driver động cơ bước (kiểu DRIVER: cần STEP và DIR)
-#define STEP_PIN 8
-#define DIR_PIN 9
-
-// Khởi tạo đối tượng AccelStepper (chế độ DRIVER)
-AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
-
-// --- Thông số cơ học ---
-// Số bước/vòng (theo yêu cầu mới)
-const int mech_stepsPerRevolution = 6400;
-// Vít me: 5 mm/1 vòng
-const float leadScrewPitch = 5.0;
-// Quãng đường di chuyển (mm) – bạn có thể thay đổi thông số này
-float distanceToMove = 200.0;
-// Thời gian di chuyển (giây) – sẽ được nhập từ Serial (hoặc chỉnh sửa)
-float timeToMove = 10.0;
-// Tính tổng số bước cần thiết
-long totalSteps = (distanceToMove / leadScrewPitch) * mech_stepsPerRevolution;
-// Tốc độ mục tiêu (bước/giây) được tính lại sau khi có thời gian
-float targetSpeed = totalSteps / timeToMove;
-// Gia tốc (step/s²)
-int motorAcceleration = targetSpeed / 2;  // có thể thay đổi
-
-// --- Chuỗi JSON lưu dữ liệu mẫu ---
-String jsonData = "";
-bool firstSample = true;
-int sampleCounter = 0;
-
-// Hàm lấy mẫu (mỗi giây) – ghi thời gian (số mẫu), tốc độ hiện tại (mm/s) và quãng đường (mm)
-void recordSample() {
-  sampleCounter++;
-  // Lấy tốc độ hiện tại (bước/s) và đổi sang mm/s:
-  float currentSpeedSteps = stepper.speed();
-  float currentSpeedMM = currentSpeedSteps * leadScrewPitch / mech_stepsPerRevolution;
-  // Tính quãng đường di chuyển (mm)
-  float currentDistanceMM = abs(stepper.currentPosition()) * leadScrewPitch / mech_stepsPerRevolution;
-  
-  if (!firstSample) {
-    jsonData += ",\n";
-  }
-  jsonData += "  { \"time\": " + String(sampleCounter) +
-              ", \"speed\": " + String(currentSpeedMM, 1) +
-              ", \"distance\": " + String(currentDistanceMM, 1) + " }";
-  firstSample = false;
-}
-
-// Hàm chạy động cơ với lấy mẫu dữ liệu trong suốt quá trình chuyển động  
-// target: vị trí mục tiêu (số bước)  
-// moveDuration: thời gian chuyển động dự kiến (ms)
-void moveWithSampling(long target, unsigned long moveDuration) {
-  stepper.moveTo(target);
-  unsigned long startTime = millis();
-  unsigned long lastSampleTime = millis();
-  
-  while (stepper.distanceToGo() != 0) {
-    stepper.run(); // Điều khiển động cơ với gia tốc giảm tốc tự động
-    if (millis() - lastSampleTime >= 1000) {  // lấy mẫu mỗi 1 giây
-      recordSample();
-      lastSampleTime = millis();
-    }
-  }
-  // Nếu thời gian chạy chưa đủ moveDuration, đợi thêm
-  unsigned long elapsed = millis() - startTime;
-  if (elapsed < moveDuration) {
-    delay(moveDuration - elapsed);
-  }
-}
-
-// Hàm thực hiện chuyển động: tiến (đi theo quãng đường đã chọn) rồi quay lại vị trí ban đầu  
-// Hàm này sẽ xây dựng chuỗi JSON và in ra Serial (để ESP8266 phục vụ web)
-void runMotorMotion() {
-  // Cập nhật lại các thông số tính toán dựa trên giá trị hiện hành
-  totalSteps = (distanceToMove / leadScrewPitch) * mech_stepsPerRevolution;
-  targetSpeed = totalSteps / timeToMove;
-  stepper.setMaxSpeed(targetSpeed);
-  stepper.setAcceleration(motorAcceleration);
-  
-  // Reset chuỗi JSON và bộ đếm mẫu
-  jsonData = "[\n";
-  firstSample = true;
-  sampleCounter = 0;
-  
-  // Hiển thị trên LCD
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Moving Forward");
-  
-  // Chạy chuyển động tiến
-  moveWithSampling(totalSteps, (unsigned long)(timeToMove * 1000));
-  
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Returning Back");
-  
-  // Chạy chuyển động quay lại vị trí ban đầu
-  moveWithSampling(0, (unsigned long)(timeToMove * 1000));
-  
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Operation Done!");
-  delay(1000);
-  
-  // Kết thúc chuỗi JSON
-  jsonData += "\n]";
-  
-  // Gửi JSON qua Serial để web có thể lấy dữ liệu
-  Serial.println(jsonData);
-}
-
-// ====================
-// PHẦN 2: Server Web (ESP8266) phục vụ giao diện và dữ liệu
-// ====================
-
-// Thông tin WiFi – thay đổi theo mạng của bạn
+// --- Thông tin WiFi ---
+// Chế độ Station (kết nối mạng hiện có)
 const char* ssid_sta = "cheese";
-const char* password_sta = "88888888";
-
+const char* password_sta = "hoilamgi";
+// Chế độ Access Point (tự phát WiFi)
 const char* ssid_ap = "blade_coating";
 const char* password_ap = "12345678";
 
-// Khởi tạo web server trên cổng 80
+// Khởi tạo WebServer chạy trên cổng 80
 ESP8266WebServer server(80);
 
-// Biến lưu trữ dữ liệu JSON nhận được từ phần chuyển động (Arduino)
-String motorData = "[]";  // mặc định mảng rỗng
+// Biến lưu trữ lệnh điều khiển (nếu cần)
+String command = "";
+// Biến lưu trữ dữ liệu JSON nhận từ Arduino (mặc định là mảng rỗng)
+String motorData = "[]";
 
-// Giao diện web – sử dụng raw literal để dễ quản lý
+// --- Giao diện Web ---
+// Lưu ý: Toàn bộ nội dung HTML/JavaScript được bao bọc trong raw literal string
 const char htmlControl[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Điều khiển động cơ bước</title>
-    <style>
-      /* CSS của bạn */
-    </style>
-  </head>
-  <body>
-    <!-- Nội dung HTML -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-      // Các hàm JavaScript của bạn, ví dụ:
-      function updateChart(dataArray) {
-        monitoringChart.data.labels = [];
-        monitoringChart.data.datasets[0].data = [];
-        dataArray.forEach(item => {
-          monitoringChart.data.labels.push(item.time);
-          monitoringChart.data.datasets[0].data.push(item.speed);
-        });
-        monitoringChart.update();
-      }
-      function fetchData() {
-        fetch('/data')
-          .then(response => response.json())
-          .then(data => {
-            console.log("Dữ liệu nhận từ Arduino:", data);
-            updateChart(data);
-          })
-          .catch(err => console.error("Lỗi khi lấy dữ liệu:", err));
-      }
-      setInterval(fetchData, 3000);
-      function startOperation() {
-        fetch('/start')
-          .then(response => response.text())
-          .then(data => { console.log("Đã bắt đầu: " + data); })
-          .catch(err => console.error("Lỗi khi bắt đầu:", err));
-      }
-    </script>
-  </body>
-</html>
-)rawliteral";
-
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -231,13 +70,13 @@ const char htmlControl[] PROGMEM = R"rawliteral(
       }
       .input-group {
         margin: 15px 0;
+        text-align: left;
       }
       .input-group label {
         display: block;
         margin-bottom: 5px;
         font-size: 16px;
         font-weight: bold;
-        text-align: left;
       }
       .input-group input {
         width: calc(100% - 20px);
@@ -247,6 +86,21 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         border: 1px solid #ccc;
         border-radius: 5px;
         display: block;
+      }
+      .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px; /* Khoảng cách giữa các lựa chọn */
+      }
+
+      .radio-group label {
+        display: flex;
+        align-items: center;
+        gap: 8px; /* Khoảng cách giữa input và chữ */
+      }
+
+      .radio-group input {
+        margin: 0;
       }
       .info {
         margin-top: 20px;
@@ -284,7 +138,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
     <div class="container">
       <h1>Điều khiển động cơ bước</h1>
 
-      <!-- Nhập quãng đường và tốc độ -->
+      <!-- Nhập quãng đường -->
       <div class="input-group">
         <label for="distanceInput">Nhập quãng đường (mm):</label>
         <input
@@ -295,7 +149,31 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         />
       </div>
 
-      <div class="input-group">
+      <!-- Chọn chế độ tính: theo tốc độ hoặc theo thời gian -->
+      <div class="radio-group">
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="speed"
+            checked
+            onchange="toggleMode(this.value)"
+          />
+          Tính theo tốc độ
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="mode"
+            value="time"
+            onchange="toggleMode(this.value)"
+          />
+          Tính theo thời gian hoàn thành
+        </label>
+      </div>
+
+      <!-- Nhập tốc độ (mm/s) -->
+      <div class="input-group" id="speedInputContainer">
         <label for="speedInput">Nhập tốc độ (mm/s):</label>
         <input
           type="number"
@@ -305,7 +183,22 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         />
       </div>
 
-      <button onclick="setParameters()">Cập nhật thông số</button>
+      <!-- Nhập thời gian hoàn thành (s) -->
+      <div class="input-group" id="timeInputContainer" style="display: none">
+        <label for="timeInput">Nhập thời gian hoàn thành (s):</label>
+        <input
+          type="number"
+          id="timeInput"
+          min="0"
+          placeholder="Nhập thời gian hoàn thành..."
+        />
+      </div>
+
+      <div class="button-group">
+        <button onclick="backward()">Lùi</button>
+        <button onclick="setParameters()">Cập nhật thông số</button>
+        <button onclick="forward()">Tiến</button>
+      </div>
 
       <div class="button-group">
         <button onclick="startTimer()">Bắt đầu</button>
@@ -329,7 +222,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
       <!-- Biểu đồ giám sát -->
       <div class="chart-container">
         <h2>Biểu đồ giám sát</h2>
-        <canvas id="monitoringChart" width="400" height="200"></canvas>
+        <canvas id="monitoringChart" width="500" height="300"></canvas>
       </div>
 
       <!-- Lưu trữ dữ liệu -->
@@ -340,12 +233,11 @@ const char htmlControl[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      // Thông số vít-me
+      // Thông số vít-mê
       const leadScrewPitch = 5; // mm/rev
-      const stepsPerRevolution = 200; // step/rev (ví dụ; nếu cần có thể thay đổi)
-      const microstep = 16; // vi bước (nếu sử dụng)
+      const stepsPerRevolution = 200; // step/rev
+      const microstep = 16; // vi bước
 
       let speed = 0; // mm/s
       let acceleration = 0; // mm/s²
@@ -353,68 +245,66 @@ const char htmlControl[] PROGMEM = R"rawliteral(
       let time = 0; // giây
       let countdown; // biến đếm ngược
       let dataLogs = []; // lưu trữ dữ liệu
-      let monitoringChart; // biến biểu đồ
 
-      // Khởi tạo biểu đồ với Chart.js
-      const ctx = document.getElementById("monitoringChart").getContext("2d");
-      monitoringChart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "Tốc độ (mm/s)",
-              data: [],
-              borderColor: "#3498db",
-              fill: false,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Thời gian (s)",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: "Tốc độ (mm/s)",
-              },
-            },
-          },
-        },
-      });
+      // Dữ liệu cho biểu đồ
+      let chartData = {
+        times: [],
+        speeds: [],
+      };
 
-      // Tính toán thông số động cơ
+      // Biến lưu chế độ hiện tại: "speed" hoặc "time"
+      let selectedMode = "speed";
+
+      // Hàm chuyển đổi giữa các chế độ nhập
+      function toggleMode(mode) {
+        selectedMode = mode;
+        if (mode === "speed") {
+          document.getElementById("speedInputContainer").style.display =
+            "block";
+          document.getElementById("timeInputContainer").style.display = "none";
+        } else {
+          document.getElementById("speedInputContainer").style.display = "none";
+          document.getElementById("timeInputContainer").style.display = "block";
+        }
+      }
+
+      // Tính toán thông số động cơ dựa trên input và chế độ được chọn
       function calculateParameters() {
         const inputDistance = parseFloat(
           document.getElementById("distanceInput").value
         );
-        const inputSpeed = parseFloat(
-          document.getElementById("speedInput").value
-        );
-        if (
-          isNaN(inputDistance) ||
-          inputDistance <= 0 ||
-          isNaN(inputSpeed) ||
-          inputSpeed <= 0
-        ) {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
-          return;
+        if (isNaN(inputDistance) || inputDistance <= 0) {
+          alert("Vui lòng nhập quãng đường hợp lệ.");
+          return false;
         }
         distance = inputDistance;
-        speed = inputSpeed;
-        // Tính gia tốc và thời gian hoàn thành
+        if (selectedMode === "speed") {
+          const inputSpeed = parseFloat(
+            document.getElementById("speedInput").value
+          );
+          if (isNaN(inputSpeed) || inputSpeed <= 0) {
+            alert("Vui lòng nhập tốc độ hợp lệ.");
+            return false;
+          }
+          speed = inputSpeed;
+          time = distance / speed;
+        } else {
+          const inputTime = parseFloat(
+            document.getElementById("timeInput").value
+          );
+          if (isNaN(inputTime) || inputTime <= 0) {
+            alert("Vui lòng nhập thời gian hoàn thành hợp lệ.");
+            return false;
+          }
+          time = inputTime;
+          speed = distance / time;
+        }
         acceleration = (speed * speed) / (2 * distance);
-        time = distance / speed;
         updateDisplay();
+        return true;
       }
 
-      // Cập nhật hiển thị thông số lên trang
+      // Cập nhật thông số hiển thị trên trang
       function updateDisplay() {
         document.getElementById("speed").innerText = speed.toFixed(2);
         document.getElementById("distance").innerText = distance.toFixed(2);
@@ -423,10 +313,167 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         document.getElementById("time").innerText = time.toFixed(2);
       }
 
-      // Gọi tính toán và gửi thông số đến ESP8266
+      // Gọi tính toán và gửi thông số đến ESP8266 (giả lập)
       function setParameters() {
-        calculateParameters();
-        fetchParameters();
+        if (calculateParameters()) {
+          fetchParameters();
+        }
+      }
+
+      // Vẽ biểu đồ với các giá trị trên trục x và y
+      function drawChart() {
+        const canvas = document.getElementById("monitoringChart");
+        if (!canvas.getContext) return;
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+        // Xóa canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Định nghĩa lề cho biểu đồ
+        const margin = { top: 20, right: 40, bottom: 40, left: 50 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        // Vẽ trục y và trục x
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 1;
+        // Trục y
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top);
+        ctx.lineTo(margin.left, margin.top + chartHeight);
+        ctx.stroke();
+        // Trục x
+        ctx.beginPath();
+        ctx.moveTo(margin.left, margin.top + chartHeight);
+        ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
+        ctx.stroke();
+
+        // --- Vẽ các dấu tick và nhãn trên trục y (tốc độ) ---
+        const maxSpeed = Math.max(...chartData.speeds, speed * 2);
+        const yTickCount = 5;
+        ctx.fillStyle = "#333";
+        ctx.font = "12px Arial";
+        for (let i = 0; i <= yTickCount; i++) {
+          const yVal = (maxSpeed / yTickCount) * i;
+          const yPos =
+            margin.top + chartHeight - (yVal / maxSpeed) * chartHeight;
+          // Vẽ dấu tick bên trái trục
+          ctx.beginPath();
+          ctx.moveTo(margin.left - 5, yPos);
+          ctx.lineTo(margin.left, yPos);
+          ctx.stroke();
+          // Vẽ đường lưới ngang (tùy chọn)
+          ctx.strokeStyle = "#ccc";
+          ctx.beginPath();
+          ctx.moveTo(margin.left, yPos);
+          ctx.lineTo(margin.left + chartWidth, yPos);
+          ctx.stroke();
+          ctx.strokeStyle = "#333";
+          // Vẽ nhãn
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(yVal.toFixed(1), margin.left - 8, yPos);
+        }
+
+        // --- Vẽ các dấu tick và nhãn trên trục x (thời gian) ---
+        const maxTime =
+          time > 0
+            ? time
+            : chartData.times.length > 0
+            ? chartData.times[chartData.times.length - 1]
+            : 1;
+        const xTickCount = 5;
+        for (let i = 0; i <= xTickCount; i++) {
+          const xVal = (maxTime / xTickCount) * i;
+          const xPos = margin.left + (chartWidth / xTickCount) * i;
+          // Vẽ dấu tick bên dưới trục
+          ctx.beginPath();
+          ctx.moveTo(xPos, margin.top + chartHeight);
+          ctx.lineTo(xPos, margin.top + chartHeight + 5);
+          ctx.stroke();
+          // Vẽ đường lưới dọc (tùy chọn)
+          ctx.strokeStyle = "#ccc";
+          ctx.beginPath();
+          ctx.moveTo(xPos, margin.top);
+          ctx.lineTo(xPos, margin.top + chartHeight);
+          ctx.stroke();
+          ctx.strokeStyle = "#333";
+          // Vẽ nhãn
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillText(xVal.toFixed(1), xPos, margin.top + chartHeight + 8);
+        }
+
+        // --- Vẽ đường biểu đồ nếu có đủ dữ liệu ---
+        if (chartData.times.length < 2) return;
+        ctx.beginPath();
+        const n = chartData.times.length;
+        for (let i = 0; i < n; i++) {
+          // Vị trí x theo tỷ lệ thời gian
+          const x = margin.left + (chartData.times[i] / maxTime) * chartWidth;
+          // Vị trí y theo tỷ lệ tốc độ
+          const y =
+            margin.top +
+            chartHeight -
+            (chartData.speeds[i] / maxSpeed) * chartHeight;
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.strokeStyle = "#3498db";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Vẽ các điểm dữ liệu
+        for (let i = 0; i < n; i++) {
+          const x = margin.left + (chartData.times[i] / maxTime) * chartWidth;
+          const y =
+            margin.top +
+            chartHeight -
+            (chartData.speeds[i] / maxSpeed) * chartHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fillStyle = "#3498db";
+          ctx.fill();
+        }
+      }
+
+      // Hàm gửi dữ liệu đến API POST sau khi chạy xong
+      function postDataToServer() {
+        // Chuẩn bị body của POST request theo cấu trúc yêu cầu
+        const postBody = {
+          data: dataLogs, // dataLogs là mảng chứa dữ liệu các mẫu đã thu thập
+        };
+
+        fetch("https://jerry-roommate-app.click/api/v1/motor", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(postBody),
+        })
+          .then((response) => response.json())
+          .then((result) => {
+            console.log("API response:", result);
+            alert("Gửi dữ liệu lên server thành công!");
+          })
+          .catch((error) => {
+            console.error("Error posting data:", error);
+            alert("Gửi dữ liệu gặp lỗi!");
+          });
+      }
+
+      // gửi chuyển động "tiến"
+      function forward() {
+        sendCommand("forward");
+      }
+
+      // gửi chuyển động "lùi"
+      function backward() {
+        sendCommand("backward");
       }
 
       // Bắt đầu chuyển động và cập nhật biểu đồ theo thời gian
@@ -437,10 +484,10 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         countdown = setInterval(function () {
           remainingTime -= 1;
           document.getElementById("time").innerText = remainingTime.toFixed(2);
-          // Cập nhật biểu đồ với giá trị tốc độ hiện tại
-          monitoringChart.data.labels.push(time - remainingTime);
-          monitoringChart.data.datasets[0].data.push(speed);
-          monitoringChart.update();
+          // Cập nhật dữ liệu cho biểu đồ
+          chartData.times.push(time - remainingTime);
+          chartData.speeds.push(speed);
+          drawChart();
           // Lưu trữ dữ liệu
           dataLogs.push({
             time: time - remainingTime,
@@ -450,6 +497,9 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           if (remainingTime <= 0) {
             clearInterval(countdown);
             alert("Hoàn thành!");
+
+            // Sau khi hoàn thành, gọi API POST để gửi dữ liệu lên server
+            postDataToServer();
           }
         }, 1000);
       }
@@ -467,20 +517,20 @@ const char htmlControl[] PROGMEM = R"rawliteral(
         time = 0;
         acceleration = 0;
         updateDisplay();
-        monitoringChart.data.labels = [];
-        monitoringChart.data.datasets[0].data = [];
-        monitoringChart.update();
+        chartData.times = [];
+        chartData.speeds = [];
+        drawChart();
         dataLogs = [];
         document.getElementById("dataLogs").innerHTML = "";
         sendCommand("reset");
       }
 
-      // Gửi thông số (quãng đường và tốc độ) đến ESP8266 qua HTTP request
+      // Gửi thông số đến ESP8266 (giả lập)
       function fetchParameters() {
-        const distance = document.getElementById("distanceInput").value;
-        const speed = document.getElementById("speedInput").value;
-        if (distance && speed) {
-          const url = `/control?distance=${distance}&speed=${speed}`;
+        const distanceValue = document.getElementById("distanceInput").value;
+        // Lưu ý: tốc độ hoặc thời gian đã được tính trong calculateParameters()
+        if (distanceValue) {
+          const url = `/control?distance=${distanceValue}&speed=${speed}`;
           fetch(url)
             .then((response) => response.text())
             .then((data) => {
@@ -490,11 +540,11 @@ const char htmlControl[] PROGMEM = R"rawliteral(
               console.error("Lỗi khi gửi yêu cầu:", error);
             });
         } else {
-          alert("Vui lòng nhập quãng đường và tốc độ hợp lệ.");
+          alert("Vui lòng nhập quãng đường hợp lệ.");
         }
       }
 
-      // Gửi lệnh điều khiển đến ESP8266 (start, stop, reset, …)
+      // Gửi lệnh điều khiển đến ESP8266 (start, stop, reset,...)
       function sendCommand(cmd) {
         fetch("/control?command=" + cmd)
           .then((response) => response.text())
@@ -518,14 +568,15 @@ const char htmlControl[] PROGMEM = R"rawliteral(
       // -----------------------------
       // CHỨC NĂNG LẤY DỮ LIỆU TỪ ARDUINO (ESP8266 trả về JSON)
       // -----------------------------
-      function updateChart(dataArray) {
-        monitoringChart.data.labels = [];
-        monitoringChart.data.datasets[0].data = [];
+      function updateChartWithData(dataArray) {
+        // Giả sử dataArray là mảng đối tượng có thuộc tính time và speed
+        chartData.times = [];
+        chartData.speeds = [];
         dataArray.forEach((item) => {
-          monitoringChart.data.labels.push(item.time);
-          monitoringChart.data.datasets[0].data.push(item.speed);
+          chartData.times.push(item.time);
+          chartData.speeds.push(item.speed);
         });
-        monitoringChart.update();
+        drawChart();
       }
 
       function fetchData() {
@@ -533,7 +584,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           .then((response) => response.json())
           .then((data) => {
             console.log("Dữ liệu nhận từ Arduino:", data);
-            updateChart(data);
+            updateChartWithData(data);
           })
           .catch((err) => console.error("Lỗi khi lấy dữ liệu:", err));
       }
@@ -543,68 +594,59 @@ const char htmlControl[] PROGMEM = R"rawliteral(
     </script>
   </body>
 </html>
+
+
+
 )rawliteral";
 
-// Hàm xử lý trang chủ – gửi giao diện web
 void handleRoot() {
   server.send_P(200, "text/html", htmlControl);
 }
 
-// Endpoint trả về dữ liệu JSON (nhận từ quá trình chuyển động)
+// Xử lý yêu cầu điều khiển từ client
+void handleControl() {
+  if (server.hasArg("command")) {
+    command = server.arg("command");
+    Serial.println(command); // Gửi lệnh qua Serial tới Arduino
+    server.send(200, "text/plain", "Đã gửi lệnh: " + command);
+  } else if (server.hasArg("distance") && server.hasArg("speed")) {
+    String distance = server.arg("distance");
+    String speed = server.arg("speed");
+    // Gửi dữ liệu tới Arduino qua Serial với định dạng đặc biệt
+    Serial.print("D:");
+    Serial.print(distance);
+    Serial.print(",S:");
+    Serial.print(speed);
+    Serial.println();
+    server.send(200, "text/plain", "Đã gửi lệnh: " + distance + "mm, " + speed + "mm/s");
+  } else {
+    server.send(400, "text/plain", "Lỗi: Không tìm thấy các tham số 'distance' và 'speed'.");
+  }
+}
+
+// Xử lý yêu cầu lấy dữ liệu JSON từ Arduino
 void handleData() {
   server.send(200, "application/json", motorData);
 }
 
-// Endpoint để bắt đầu chuyển động (điều khiển động cơ)
-void handleStart() {
-  // Gọi hàm chuyển động (hàm này sẽ chạy blocking)
-  runMotorMotion();
-  // Sau đó trả về phản hồi
-  server.send(200, "text/plain", "Operation completed");
-}
-
-// ====================
-// SETUP CHÍNH
-// ====================
 void setup() {
-  // --- Phần điều khiển động cơ và LCD ---
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0);
-  lcd.print("Initializing...");
-  delay(2000);
-  lcd.clear();
-  
-  // Cài đặt ban đầu cho động cơ
-  stepper.setMaxSpeed(targetSpeed);
-  stepper.setAcceleration(motorAcceleration);
-  
-  // --- Serial dùng cho dữ liệu chuyển động ---  
+  // --- Phần WiFi ---
   Serial.begin(9600);
-  delay(1000);  // Đợi ổn định
-  
-  // --- Phần WiFi ---  
-  // Chế độ Station + AP
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid_sta, password_sta);
   Serial.println("Đang kết nối WiFi (STA)...");
-  
   unsigned long startTime = millis();
-  // Tăng timeout kết nối lên 30 giây (30000 ms)
   while (WiFi.status() != WL_CONNECTED && millis() - startTime < 30000) {
     delay(500);
     Serial.print(".");
   }
-  
-  if(WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nĐã kết nối WiFi (STA)!");
     Serial.print("Địa chỉ IP (STA): ");
     Serial.println(WiFi.localIP());
   } else {
     Serial.println("\nKhông kết nối được WiFi (STA).");
   }
-  
-  // Khởi tạo Access Point
   WiFi.softAP(ssid_ap, password_ap);
   Serial.println("Access Point đã sẵn sàng.");
   Serial.print("Địa chỉ IP (AP): ");
@@ -612,30 +654,24 @@ void setup() {
   
   // --- Cài đặt Web Server ---
   server.on("/", handleRoot);
+  server.on("/control", handleControl);
   server.on("/data", handleData);
-  server.on("/start", handleStart);
   server.begin();
   Serial.println("Server bắt đầu hoạt động...");
 }
 
-
-// ====================
-// LOOP CHÍNH
-// ====================
 void loop() {
-  // Chạy web server
   server.handleClient();
   
-  // Đọc dữ liệu từ Serial (giả sử phần chuyển động đã in JSON)
-  // Nếu có dòng bắt đầu bằng dấu [ thì cập nhật biến motorData
+  // Đọc dữ liệu từ Arduino qua Serial
   if (Serial.available()) {
     String line = Serial.readStringUntil('\n');
+    line.trim();
     if (line.startsWith("[")) {
       motorData = line;
       Serial.println("Cập nhật motorData: " + motorData);
     }
   }
   
-  // Nếu không có lệnh chuyển động nào, ta cho loop chạy nhẹ
   delay(10);
 }
