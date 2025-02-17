@@ -448,7 +448,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           data: dataLogs, // dataLogs là mảng chứa dữ liệu các mẫu đã thu thập
         };
 
-        fetch("https://jerry-roommate-app.click/api/v1/motor", {
+        fetch("https://aahome.click/api/v1/motor", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
