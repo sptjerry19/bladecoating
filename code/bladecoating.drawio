@@ -1,0 +1,77 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0" version="26.0.10">
+  <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
+    <mxGraphModel dx="1426" dy="827" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-1" parent="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="huoUDReg3-uegkcwUdyc-36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-18" target="huoUDReg3-uegkcwUdyc-35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-38" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-18" target="huoUDReg3-uegkcwUdyc-37">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-18" value="Blade coating" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="150" y="490" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" target="huoUDReg3-uegkcwUdyc-33">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="470" y="510" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-49" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-33" target="huoUDReg3-uegkcwUdyc-44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-33" value="Sử dụng chiết áp để điều chỉnh tốc độ motor bước" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="520" y="480" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-42" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-35" target="huoUDReg3-uegkcwUdyc-41">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-35" target="huoUDReg3-uegkcwUdyc-44">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-35" value="ESP 8266" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="150" y="610" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-52" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-37" target="huoUDReg3-uegkcwUdyc-35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-53" value="UART" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="huoUDReg3-uegkcwUdyc-52">
+          <mxGeometry x="-0.575" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-37" value="ArduinoUno" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="350" y="490" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-55" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-41" target="huoUDReg3-uegkcwUdyc-54">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-41" value="Sử dụng giao diện trên web để điều chỉnh tốc độ motor bước" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="150" y="755" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-43" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-44" target="huoUDReg3-uegkcwUdyc-46">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-44" value="Hiện thị vận tốc, gia tốc, quãng đường trên màn hình LCD" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="495" y="585" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-45" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-46" target="huoUDReg3-uegkcwUdyc-47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-57" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="huoUDReg3-uegkcwUdyc-46" target="huoUDReg3-uegkcwUdyc-54">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-46" value="Gửi dữ liệu được điều chỉnh từ chiết áp lên web để hiển thị" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="520" y="755" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-47" value="Thu thập dữ liệu tốc độ / thời gian sau đó lưu vào database để những lần chạy sau có thể lựa chon" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="715" y="742.5" width="165" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="huoUDReg3-uegkcwUdyc-54" value="Hiển thị các thông số được điều chỉnh trên web" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="340" y="755" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
