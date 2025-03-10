@@ -145,6 +145,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           type="number"
           id="distanceInput"
           min="0"
+          max="180"
           placeholder="Nhập quãng đường..."
         />
       </div>
@@ -179,6 +180,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           type="number"
           id="speedInput"
           min="0"
+          max="100"
           placeholder="Nhập tốc độ..."
         />
       </div>
@@ -190,6 +192,7 @@ const char htmlControl[] PROGMEM = R"rawliteral(
           type="number"
           id="timeInput"
           min="0"
+          max="18000"
           placeholder="Nhập thời gian hoàn thành..."
         />
       </div>
