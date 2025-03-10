@@ -633,6 +633,7 @@ void handleData() {
 }
 
 void setup() {
+  delay(4000);
   // --- Phần WiFi ---
   Serial.begin(9600);
   WiFi.mode(WIFI_AP_STA);
