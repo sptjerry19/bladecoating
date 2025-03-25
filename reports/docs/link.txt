@@ -1,0 +1,2 @@
+đường dẫn overleaf: https://www.overleaf.com/project/67a47865f79fc73aea423ee0
+source code: https://github.com/sptjerry19/bladecoating 
