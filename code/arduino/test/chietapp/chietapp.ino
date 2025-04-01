@@ -9,6 +9,22 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 #define STEP_PIN 8
 #define DIR_PIN 9
 
+// Chân joystick
+#define JOYSTICK_X A0
+#define JOYSTICK_Y A1
+#define BUTTON_PIN 2
+// #define MODE_SWITCH_PIN 3  // Nút chuyển đổi chế độ điều khiển
+
+// Biến điều khiển joystick
+int joystickX = 0;
+int joystickY = 0;
+bool buttonPressed = false;
+bool modeSwitchPressed = false;
+bool joystickMode = true;  // true = điều khiển joystick, false = điều khiển IOT
+const int JOYSTICK_DEADZONE = 100;  // Vùng chết của joystick
+const int MAX_SPEED = 100;           // Tốc độ tối đa (mm/s)
+const int MIN_SPEED = 0.1;          // Tốc độ tối thiểu (mm/s)
+
 // Khởi tạo đối tượng AccelStepper (chế độ DRIVER)
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 
@@ -42,6 +58,65 @@ bool startCommandReceived = false;
 bool stopCommandReceived = false;
 bool forwardCommandReceived = false;
 bool backwardCommandReceived = false;
+
+
+void displayMenu() {
+  int menuIndex = 0; // Chỉ số menu hiện tại (0 = Thủ công, 1 = IOT)
+  bool menuSelected = false;
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("> Thủ cong");
+  lcd.setCursor(0, 1);
+  lcd.print("  IOT");
+
+  while (!menuSelected) {
+    joystickY = analogRead(JOYSTICK_Y); // Đọc trục Y của joystick
+    buttonPressed = digitalRead(BUTTON_PIN) == LOW; // Kiểm tra nút nhấn
+
+    // Di chuyển lên/xuống trong menu
+    if (joystickY < 400) { // Joystick đẩy lên
+      menuIndex = 0;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("> Thủ cong");
+      lcd.setCursor(0, 1);
+      lcd.print("  IOT");
+      delay(200); // Debounce
+    } else if (joystickY > 600) { // Joystick đẩy xuống
+      menuIndex = 1;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("  Thủ cong");
+      lcd.setCursor(0, 1);
+      lcd.print("> IOT");
+      delay(200); // Debounce
+    }
+
+    // Xử lý khi nhấn nút để chọn
+    if (buttonPressed) {
+      menuSelected = true;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Selected: ");
+      lcd.print(menuIndex == 0 ? "Thủ cong" : "IOT");
+      delay(1000); // Hiển thị lựa chọn trong 1 giây
+    }
+  }
+
+  // Cập nhật chế độ dựa trên lựa chọn
+  joystickMode = (menuIndex == 0); // 0 = Thủ công, 1 = IOT
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(joystickMode ? "Mode: Thủ cong" : "Mode: IOT");
+  delay(1000);
+  lcd.clear();
+
+  // Nếu chọn chế độ thủ công, hiển thị thêm menu nhập thông số
+  if (joystickMode) {
+    handleManualInput();
+  }
+}
 
 //
 // Hàm ghi nhận mẫu dữ liệu (thời gian, tốc độ, quãng đường)
@@ -236,6 +311,161 @@ void moveWithSampling(long target, unsigned long moveDuration) {
 }
 
 //
+// Hàm xử lý điều khiển bằng joystick
+//
+void handleJoystickControl() {
+  // Đọc giá trị joystick
+  joystickX = analogRead(JOYSTICK_X);
+  joystickY = analogRead(JOYSTICK_Y);
+  buttonPressed = digitalRead(BUTTON_PIN) == LOW;  // Pull-up resistor
+
+  // Xử lý chuyển đổi chế độ khi nhấn giữ nút joystick
+  if (buttonPressed) {
+    delay(50);  // Debounce
+    if (digitalRead(BUTTON_PIN) == LOW) {  // Kiểm tra lại sau debounce
+      joystickMode = !joystickMode;  // Đảo ngược chế độ
+      stepper.setSpeed(0);  // Dừng động cơ khi chuyển chế độ
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(joystickMode ? "Mode: Thủ công" : "Mode: IOT");
+      delay(1000);
+      lcd.clear();
+      return;
+    }
+  }
+
+  // Chỉ xử lý joystick nếu đang ở chế độ joystick
+  if (!joystickMode) return;
+
+  // Tính toán tốc độ dựa trên vị trí joystick
+  int centerX = 512;  // Giá trị trung tâm của joystick
+  float speedMultiplier = 0.0;
+
+  // Xử lý hướng và tốc độ dựa trên trục X
+  if (abs(joystickX - centerX) > JOYSTICK_DEADZONE) {
+    speedMultiplier = (float)(abs(joystickX - centerX) - JOYSTICK_DEADZONE) / (1024 - JOYSTICK_DEADZONE);
+    speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * speedMultiplier;
+
+    // Xác định hướng chuyển động
+    if (joystickX > centerX) {
+      stepper.setSpeed(targetSpeed);  // Chuyển động tiến
+      lcd.setCursor(0, 1);
+      lcd.print("Forward ");
+      lcd.print(speed, 1);
+      lcd.print("mm/s");
+    } else {
+      stepper.setSpeed(-targetSpeed);  // Chuyển động lùi
+      lcd.setCursor(0, 1);
+      lcd.print("Backward ");
+      lcd.print(speed, 1);
+      lcd.print("mm/s");
+    }
+  } else {
+    stepper.setSpeed(0);  // Dừng động cơ
+    lcd.setCursor(0, 1);
+    lcd.print("Stopped");
+  }
+
+  // Xử lý các lệnh bổ sung trong chế độ thủ công
+  if (joystickY < 400) {  // Joystick đẩy lên để bắt đầu
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Cmd: START");
+    stepper.setCurrentPosition(0); // Reset vị trí
+    moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Forward Done");
+  } else if (joystickY > 600) {  // Joystick đẩy xuống để lùi
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Cmd: BACKWARD");
+    stepper.setCurrentPosition(0); // Reset vị trí
+    moveWithSampling(totalSteps, (unsigned long)(timeToMove * 1000));
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Backward Done");
+  } else if (buttonPressed) {  // Nhấn nút để reset
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Cmd: RESET");
+    jsonData = "[\n";
+    firstSample = true;
+    sampleCounter = 0;
+    stopCommandReceived = false;
+    stepper.setCurrentPosition(0); // Reset vị trí động cơ
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("System Reset");
+  }
+}
+
+void handleManualInput() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Nhap quang duong:");
+  delay(1000);
+
+  // Nhập quãng đường
+  int inputDistance = 0;
+  while (true) {
+    if (Serial.available() > 0) {
+      inputDistance = Serial.parseInt();
+      if (inputDistance > 0) break;
+    }
+    lcd.setCursor(0, 1);
+    lcd.print("Nhap bang Serial");
+  }
+  distanceToMove = inputDistance;
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Nhap toc do:");
+  delay(1000);
+
+  // Nhập tốc độ
+  float inputSpeed = 0;
+  while (true) {
+    if (Serial.available() > 0) {
+      inputSpeed = Serial.parseFloat();
+      if (inputSpeed > 0) break;
+    }
+    lcd.setCursor(0, 1);
+    lcd.print("Nhap bang Serial");
+  }
+  speed = inputSpeed;
+
+  // Tính toán các thông số
+  timeToMove = distanceToMove / speed;
+  totalSteps = (distanceToMove / leadScrewPitch) * stepsPerRevolution;
+  targetSpeed = totalSteps / timeToMove;
+  stepper.setMaxSpeed(targetSpeed);
+  stepper.setAcceleration(targetSpeed / 2);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("D:");
+  lcd.print(distanceToMove);
+  lcd.print("mm");
+  lcd.setCursor(0, 1);
+  lcd.print("S:");
+  lcd.print(speed);
+  lcd.print("mm/s");
+  delay(2000);
+
+  // Chạy động cơ
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Running...");
+  stepper.setCurrentPosition(0);
+  moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Done!");
+  delay(2000);
+}
+
+//
 // setup()
 //
 void setup() {
@@ -245,24 +475,25 @@ void setup() {
   lcd.print("Initializing...");
   delay(2000);
   lcd.clear();
-  
+
+  // Thiết lập chân joystick
+  pinMode(JOYSTICK_X, INPUT);
+  pinMode(JOYSTICK_Y, INPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
   timeToMove = 10.0;          // 10 giây
-  distanceToMove = 200.0;       // 200 mm
+  distanceToMove = 200.0;     // 200 mm
   totalSteps = (distanceToMove / leadScrewPitch) * stepsPerRevolution;
   targetSpeed = totalSteps / timeToMove;
   stepper.setMaxSpeed(targetSpeed);
   stepper.setAcceleration(targetSpeed / 2);
-  
+
   Serial.begin(9600);
   delay(1000);
-  
-  lcd.setCursor(0, 0);
-  lcd.print("Time: ");
-  lcd.print(timeToMove);
-  lcd.print(" s");
-  delay(1500);
-  lcd.clear();
-  
+
+  // Hiển thị menu khi khởi động
+  displayMenu();
+
   jsonData = "[\n";
   firstSample = true;
   sampleCounter = 0;
@@ -272,55 +503,64 @@ void setup() {
 // loop()
 //
 void loop() {
-  checkForIncomingCommand();
+  // Xử lý điều khiển joystick
+  handleJoystickControl();
   
-  if (startCommandReceived) {
-    startCommandReceived = false;
+  // Chỉ xử lý lệnh IOT nếu đang ở chế độ IOT
+  if (!joystickMode) {
+    checkForIncomingCommand();
     
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Moving Forward");
-    stepper.setCurrentPosition(0); // Reset vị trí
-    moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Returning Back");
-    moveWithSampling(0, (unsigned long)(timeToMove * 1000));
-    
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Operation Done!");
-    
-    jsonData += "\n]";
-    Serial.println(jsonData);
-    
-    jsonData = "[\n";
-    firstSample = true;
-    sampleCounter = 0;
+    if (startCommandReceived) {
+      startCommandReceived = false;
+      
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Moving Forward");
+      stepper.setCurrentPosition(0); // Reset vị trí
+      moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
+      
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Returning Back");
+      moveWithSampling(0, (unsigned long)(timeToMove * 1000));
+      
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Operation Done!");
+      
+      jsonData += "\n]";
+      Serial.println(jsonData);
+      
+      jsonData = "[\n";
+      firstSample = true;
+      sampleCounter = 0;
+    }
+    else if (forwardCommandReceived) {
+      forwardCommandReceived = false;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Moving Forward");
+      stepper.setCurrentPosition(0); // Reset vị trí
+      moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Forward Done");
+    }
+    else if (backwardCommandReceived) {
+      backwardCommandReceived = false;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Moving Backward");
+      stepper.setCurrentPosition(0); // Reset vị trí
+      moveWithSampling(totalSteps, (unsigned long)(timeToMove * 1000));
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Backward Done");
+    }
   }
-  else if (forwardCommandReceived) {
-    forwardCommandReceived = false;
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Moving Forward");
-    stepper.setCurrentPosition(0); // Reset vị trí
-    moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Forward Done");
-  }
-  else if (backwardCommandReceived) {
-    backwardCommandReceived = false;
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Moving Backward");
-    stepper.setCurrentPosition(0); // Reset vị trí
-    moveWithSampling(totalSteps, (unsigned long)(timeToMove * 1000));
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Backward Done");
-  }
+  
+  // Chạy động cơ
+  stepper.run();
   
   delay(10);
 }

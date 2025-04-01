@@ -3,8 +3,8 @@
 
 // --- Thông tin WiFi ---
 // Chế độ Station (kết nối mạng hiện có)
-const char* ssid_sta = "cheese";
-const char* password_sta = "hoilamgi";
+const char* ssid_sta = "";
+const char* password_sta = "";
 // Chế độ Access Point (tự phát WiFi)
 const char* ssid_ap = "blade_coating";
 const char* password_ap = "12345678";
@@ -16,6 +16,177 @@ ESP8266WebServer server(80);
 String command = "";
 // Biến lưu trữ dữ liệu JSON nhận từ Arduino (mặc định là mảng rỗng)
 String motorData = "[]";
+
+// HTML cho trang quét WiFi
+const char htmlWiFiSetup[] PROGMEM = R"rawliteral(
+  <!DOCTYPE html>
+  <html lang="vi">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Cài đặt WiFi</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f4f4f9;
+          color: #333;
+          text-align: center;
+        }
+        .container {
+          padding: 20px;
+          max-width: 500px;
+          margin: 30px auto;
+          background: #ffffff;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          border-radius: 10px;
+        }
+        h1 {
+          margin: 20px 0;
+          font-size: 24px;
+          color: #2c3e50;
+        }
+        .wifi-list {
+          margin: 20px 0;
+          text-align: left;
+        }
+        .wifi-list button {
+          display: block;
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+          font-size: 16px;
+          color: #fff;
+          background-color: #3498db;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+        }
+        .wifi-list button:hover {
+          background-color: #2980b9;
+        }
+        .input-group {
+          margin: 15px 0;
+          text-align: left;
+        }
+        .input-group label {
+          display: block;
+          margin-bottom: 5px;
+          font-size: 16px;
+          font-weight: bold;
+        }
+        .input-group input {
+          width: calc(100% - 20px);
+          padding: 10px;
+          font-size: 16px;
+          margin: 0 auto;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+          display: block;
+        }
+        button {
+          padding: 10px 15px;
+          margin: 5px;
+          font-size: 16px;
+          color: #fff;
+          background-color: #3498db;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+        }
+        button:hover {
+          background-color: #2980b9;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>Chọn mạng WiFi</h1>
+        <div class="wifi-list" id="wifiList"></div>
+        <div class="input-group">
+          <label for="password">Nhập mật khẩu:</label>
+          <input type="password" id="password" placeholder="Nhập mật khẩu WiFi" />
+        </div>
+        <button onclick="connectWiFi()">Kết nối</button>
+      </div>
+      <script>
+        // Lấy danh sách WiFi từ ESP8266
+        fetch("/scan")
+          .then((response) => response.json())
+          .then((data) => {
+            const wifiList = document.getElementById("wifiList");
+            data.forEach((network) => {
+              const button = document.createElement("button");
+              button.textContent = network.ssid + " (" + network.rssi + " dBm)";
+              button.onclick = () => {
+                document.getElementById("password").focus();
+                document.getElementById("password").dataset.ssid = network.ssid;
+              };
+              wifiList.appendChild(button);
+            });
+          })
+          .catch((err) => console.error("Lỗi khi quét WiFi:", err));
+  
+        // Gửi yêu cầu kết nối WiFi
+        function connectWiFi() {
+          const ssid = document.getElementById("password").dataset.ssid;
+          const password = document.getElementById("password").value;
+          if (!ssid || !password) {
+            alert("Vui lòng chọn mạng WiFi và nhập mật khẩu.");
+            return;
+          }
+          fetch(`/connect?ssid=${encodeURIComponent(ssid)}&password=${encodeURIComponent(password)}`)
+            .then((response) => response.text())
+            .then((data) => {
+              alert(data);
+              if (data.includes("Thành công")) {
+                window.location.href = "/";
+              }
+            })
+            .catch((err) => alert("Lỗi khi kết nối WiFi: " + err));
+        }
+      </script>
+    </body>
+  </html>
+  )rawliteral";
+
+  // Xử lý yêu cầu quét WiFi
+void handleScanWiFi() {
+  int n = WiFi.scanNetworks();
+  String json = "[";
+  for (int i = 0; i < n; i++) {
+    if (i > 0) json += ",";
+    json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+  }
+  json += "]";
+  server.send(200, "application/json", json);
+}
+
+// Xử lý yêu cầu kết nối WiFi
+void handleConnectWiFi() {
+  if (server.hasArg("ssid") && server.hasArg("password")) {
+    String ssid = server.arg("ssid");
+    String password = server.arg("password");
+    WiFi.begin(ssid.c_str(), password.c_str());
+    unsigned long startTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 15000) {
+      delay(500);
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      String ipAddress = WiFi.localIP().toString();
+      server.send(200, "text/plain", "Kết nối WiFi thành công! Địa chỉ IP: " + ipAddress);
+      // Tắt chế độ Access Point sau khi kết nối thành công
+      // WiFi.softAPdisconnect(true);
+    } else {
+      server.send(200, "text/plain", "Kết nối WiFi thất bại. Vui lòng thử lại.");
+    }
+  } else {
+    server.send(400, "text/plain", "Thiếu tham số 'ssid' hoặc 'password'.");
+  }
+}
 
 // --- Giao diện Web ---
 // Lưu ý: Toàn bộ nội dung HTML/JavaScript được bao bọc trong raw literal string
@@ -634,6 +805,11 @@ void handleData() {
 
 void setup() {
   delay(4000);
+  // Thêm các route mới
+  server.on("/wifi", []() { server.send_P(200, "text/html", htmlWiFiSetup); });
+  server.on("/scan", handleScanWiFi);
+  server.on("/connect", handleConnectWiFi);
+
   // --- Phần WiFi ---
   Serial.begin(9600);
   WiFi.mode(WIFI_AP_STA);
