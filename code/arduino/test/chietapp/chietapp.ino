@@ -209,66 +209,61 @@ void handleManualControl() {
   
   // Tính toán trước các thông số cố định
   totalSteps = (distanceToMove / leadScrewPitch) * stepsPerRevolution;
+
+  long currentTarget = 0;
   
   while (inManualControl) {
     joystickX = analogRead(JOYSTICK_X);
     buttonPressed = digitalRead(BUTTON_PIN) == LOW;
-    
-    // Kiểm tra nút dừng
+  
+    // Nút dừng
     if (buttonPressed) {
       delay(200);
       if (digitalRead(BUTTON_PIN) == LOW) {
-        stepper.setSpeed(0);
+        stepper.stop();
         inManualControl = false;
         inMenu = true;
         displayMainMenu();
         return;
       }
     }
-    
-    // Điều khiển tốc độ dựa trên vị trí joystick X
+  
     int centerX = 512;
     float speedMultiplier = 0.0;
-    
+  
     if (abs(joystickX - centerX) > JOYSTICK_DEADZONE) {
       speedMultiplier = (float)(abs(joystickX - centerX) - JOYSTICK_DEADZONE) / (1024 - JOYSTICK_DEADZONE);
-      
-      // Tính toán tốc độ từ 1-20 mm/s
-      speed = 1.0 + (19.0 * speedMultiplier);
-      
-      // Tính toán tốc độ giống như trong chế độ IOT
+  
+      speed = 1.0 + (19.0 * speedMultiplier); // 1 - 20 mm/s
       timeToMove = distanceToMove / speed;
       float calculatedSpeed = totalSteps / timeToMove;
-      
-      // Thiết lập tốc độ tối đa và gia tốc
+  
       stepper.setMaxSpeed(calculatedSpeed);
       stepper.setAcceleration(calculatedSpeed / 2);
-      
+  
+      // Cập nhật mục tiêu nếu joystick thay đổi hướng
       if (joystickX > centerX) {
-        // Tiến: di chuyển về phía âm
-        stepper.moveTo(-totalSteps);
+        currentTarget = stepper.currentPosition() + totalSteps;
         lcd.setCursor(0, 1);
         lcd.print("Forward ");
-        lcd.print(speed, 1);
-        lcd.print("mm/s  ");
       } else {
-        // Lùi: di chuyển về phía dương
-        stepper.moveTo(totalSteps);
+        currentTarget = stepper.currentPosition() - totalSteps;
         lcd.setCursor(0, 1);
         lcd.print("Backward ");
-        lcd.print(speed, 1);
-        lcd.print("mm/s  ");
       }
-      
-      stepper.run();
+  
+      stepper.moveTo(currentTarget);
+      lcd.print(speed, 1);
+      lcd.print("mm/s   ");
     } else {
-      stepper.setSpeed(0);
+      stepper.stop(); // hoặc stepper.setSpeed(0);
       lcd.setCursor(0, 1);
       lcd.print("Stopped     ");
     }
-    
+  
+    stepper.run(); // 💥 gọi liên tục để đảm bảo chạy mượt
     checkForIncomingCommand();
-    delay(10);
+    delay(5); // delay nhỏ thôi
   }
 }
 
