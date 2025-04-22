@@ -206,66 +206,56 @@ void handleManualControl() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Manual Control");
-  
-  // Tính toán trước các thông số cố định
-  totalSteps = (distanceToMove / leadScrewPitch) * stepsPerRevolution;
 
-  long currentTarget = 0;
-  
+  float stepsPerMM = stepsPerRevolution / leadScrewPitch;
+  float manualDistance = 20.0; // 20mm mỗi lần điều khiển
+  float manualSpeed = 10.0;    // 10mm/s cố định
+  float timeToMove = manualDistance / manualSpeed;
+  long totalSteps = manualDistance * stepsPerMM;
+
   while (inManualControl) {
     joystickX = analogRead(JOYSTICK_X);
     buttonPressed = digitalRead(BUTTON_PIN) == LOW;
-  
-    // Nút dừng
+
+    // Nếu nhấn nút → STOP
     if (buttonPressed) {
       delay(200);
       if (digitalRead(BUTTON_PIN) == LOW) {
-        stepper.stop();
+        // Gửi lệnh Stop giống IOT
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("IOT: Stop");
+        stepper.setSpeed(0);
         inManualControl = false;
         inMenu = true;
         displayMainMenu();
         return;
       }
     }
-  
+
     int centerX = 512;
-    float speedMultiplier = 0.0;
-  
-    if (abs(joystickX - centerX) > JOYSTICK_DEADZONE) {
-      speedMultiplier = (float)(abs(joystickX - centerX) - JOYSTICK_DEADZONE) / (1024 - JOYSTICK_DEADZONE);
-  
-      speed = 1.0 + (19.0 * speedMultiplier); // 1 - 20 mm/s
-      timeToMove = distanceToMove / speed;
-      float calculatedSpeed = totalSteps / timeToMove;
-  
-      stepper.setMaxSpeed(calculatedSpeed);
-      stepper.setAcceleration(calculatedSpeed / 2);
-  
-      // Cập nhật mục tiêu nếu joystick thay đổi hướng
-      if (joystickX > centerX) {
-        currentTarget = stepper.currentPosition() + totalSteps;
-        lcd.setCursor(0, 1);
-        lcd.print("Forward ");
-      } else {
-        currentTarget = stepper.currentPosition() - totalSteps;
-        lcd.setCursor(0, 1);
-        lcd.print("Backward ");
-      }
-  
-      stepper.moveTo(currentTarget);
-      lcd.print(speed, 1);
-      lcd.print("mm/s   ");
-    } else {
-      stepper.stop(); // hoặc stepper.setSpeed(0);
-      lcd.setCursor(0, 1);
-      lcd.print("Stopped     ");
+
+    if (joystickX > centerX + JOYSTICK_DEADZONE) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Manual: Backward");
+      stepper.setCurrentPosition(0);
+      moveWithSampling(totalSteps, (unsigned long)(timeToMove * 1000));
+    } 
+    else if (joystickX < centerX - JOYSTICK_DEADZONE) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Manual: Forward");
+      stepper.setCurrentPosition(0);
+      moveWithSampling(-totalSteps, (unsigned long)(timeToMove * 1000));
     }
-  
-    stepper.run(); // 💥 gọi liên tục để đảm bảo chạy mượt
+
     checkForIncomingCommand();
-    delay(5); // delay nhỏ thôi
+    delay(200); // tránh spam lệnh
   }
 }
+
+
 
 //
 // Hàm ghi nhận mẫu dữ liệu (thời gian, tốc độ, quãng đường)
@@ -329,7 +319,7 @@ void checkForIncomingCommand() {
       float newDistance = dStr.toFloat();
       float newSpeed = sStr.toFloat();
       
-      if (newDistance > 0 && newSpeed > 0) {
+      if (newDistance > 0 && newSpeed > 0 && isDigit(dStr[0]) && isDigit(sStr[0])) {
         distanceToMove = newDistance;
         timeToMove = distanceToMove / newSpeed;
         totalSteps = (distanceToMove / leadScrewPitch) * stepsPerRevolution;
