@@ -1,0 +1,61 @@
+Script pptx
+1. Kính thưa hội đồng, em xin phép được thuyết trình về đề tài "Thiết kế, chế tạo máy tráng phủ màng mỏng (blade coater) ứng dụng trong linh kiện chuyển đổi điện năng
+
+2. Nội dung : chưa biết nói gì hay bỏ qua
+
+3. Tổng quan: Trong nền công nghiệp hiện đại ngày nay, công nghệ nano đang được phát triển trong chế tạo linh kiện điện tử để phục vụ cho đời sống hiện đại. Và công nghệ màng mỏng là 1 phần rất quan trọng. Dễ thấy nhất là ứng dụng màng mỏng ở trong màn hình OLED, màn hình được cấu thành từ nhiều lớp màng mỏng có kích thước từ vài chục đến vài trăm nanomet nhưng cho ra chất lượng hiển thị tốt hơn rất nhiều so với các màn hình cũ.
+
+4. Giới thiệu các phương pháp lắng đọng màng mỏng:
+Vậy để tạo lớp màng mỏng có chất lượng tốt thì cần phải có các phương pháp phù hợp. Ở đây em có tìm hiểu và liệt kê ra một vài các phương pháp lắng đọng màng mỏng như sau:
+- (chỉ vào hình ảnh): Có thể thấy các phương pháp ở phía bên trên là các phương pháp tiên tiến, hiện đại đòi hỏi các thiết bị đắt tiền, cồng kềnh và khó sử dụng.
+- Còn các phương pháp dưới đây là nhưng phương pháp đơn giản, dễ sử dụng và phù hợp trong môi trường nghiên cứu và học tập
+
+5. Đưa ra giá thành của 3 máy:
+Mặc dù các phương pháp này đơn giản, nhưng giá thành thương mại hiện tại vẫn chưa phù hợp đối với các phòng thí nghiệm nhỏ. Có thể thấy các máy này dao động từ 2600$-3500$, một con số khá lớn đối với 1 hệ thống máy đơn giản. Vì vậy trong đề tài này em lựa chọn máy bladecoating để thiết kế và chế tạo. Và sau đây là 1 vài lý do em lựa chọn đề tài này.
+
+6. Ở đây em có đưa ra 1 vài các ưu, nhược điểm của máy spin coating, 1 thiết bị đơn giản ở cùng phân khúc với blade coating. Thì thiết bị này có khả năng tạo màng mỏng với độ đồng đều cao. Nhưng thiết bị đòi hỏi dung dịch có độ nhớt thấp để có thể trải đều lên bề mặt của đế, và 99% dung dịch sẽ bị mất trong quá trình quay phủ. 
+
+7. Nêu ưu, nhược điểm của máy bladecoating:
+Và Blade coating là thiết bị có thể khắc phục được những nhược điểm này. Như thiết bị có khả năng phủ màng mỏng với độ nhớt cao, và hạn chế việc sử dụng thừa dung dịch trong quá trình tráng phủ.
+
+8. Các bước chế tạo màng mỏng bằng blade coater:
+Sau khi đã chọn ra được đề tài, thì cùng tìm hiểu đến quy trình chế tạo màng mỏng bằng phương pháp blade coater:
+- chuẩn bị dung dịch sau đó sử dụng 1 lượng vừa đủ cho quá trình tráng phủ
+- Điều chỉnh thông số trên thiết bị và dao tráng sau đó cho thiết bị chạy với tốc độ không đổi.
+- Sau khi tráng thành công, cho tấm đế vào tử sấy từ 1-2h để làm khô màng.
+
+9. Thiết kế, chế tạo máy:
+Để chế tạo được thiết bị đảm bảo được quy trình trên, thì em bắt đầu từ việc thiết kế. Đầu tiên là thiết kế bộ phận chuyển động và khung máy cho thiết bị.
+
+10. Hình ảnh thiết kế khung máy:
+Và đây là các hình ảnh được em thiết kế cho khung máy và bộ phận chuyển động.
+
+11. Để thiết bị có thể hoạt động tự động và chính xác hơn thì em có thiết kế thêm vi xử lý để thiết bị có thể hoạt động chính xác.
+
+12. Các linh kiện được em sử dụng trong chế tạo mạch điều khiển đều là các thiết bị phổ biến và phù hợp trong chế tạo thiết bị đơn giản như arduino, esp, động cơ bước,...
+
+13. Đây là sơ đồ kết nối các linh kiện điện tử
+
+14.Cuối cùng, để thiết bị có thể sử dụng với những dung dịch có độc tính, yêu cầu phải tránh tiếp xúc. Vì vậy ở đây em có thiết kế thêm phần mềm cho hệ thống để thiết bị có thể dễ dàng điều khiển từ xa với những dung dịch có độc tính.
+
+15. Trên đây là sơ đồ luồng dữ liệu điều khiển và lưu trữ dữ liệu trong database qua internet
+
+16. Đây là giao diện điều khiển và lưu trữ dữ liệu
+
+17. Đây là giao diện kết nối internet với môi trường xung quanh
+
+18. Sau khi đã chế tạo máy tráng phủ. Em bắt đầu quá trình thử nghiệm và đánh giá sản phẩm. Ở đây em có chuẩn bị 3 dung dịch PVA với các tỉ lệ 8,9,10% so với 80ml Nước. Sau khi chuẩn bị thành công em bắt đầu quá trình tráng phủ và đánh giá.
+
+19.Ở đây em có đánh giá hình thái học bề mặt của màng dựa trên ảnh hưởng của tốc độ. với nồng độ 8% PVA có thể thấy tốc độ từ 0,5 - 0,7mm cho ra màng mỏng có độ đồng đều cao nhất
+
+20. Tương tự với nồng độ 9% PVA cũng vậy
+
+21. Sau quá trình tráng phủ em có so sánh lớp màng mỏng được tạo ra từ 2 phương pháp đơn giản và có thể khẳng định được bladecoating có thể sử dụng được với dung dịch có độ nhớt cao như PVA.
+
+22. Sau khi đã có màng mỏng, em bắt đầu kiểm tra điện năng của lớp màng. Có thể thấy lớp chức năng có thể tạo ra được dòng điện lên đến hơn 60V với nồng độ 8% PVA.
+
+23-24. Như vậy, ở đề tài này em đã thiết kế và chế tạo thành công máy tráng phủ màng mỏng blade coater và thiết bị có khả năng ứng dụng trong linh kiện chuyển đổi điện năng khi cho ra được dòng điện có dòng điện cao.
+
+25. Sau đây em sẽ thử nghiệm sản phẩm.
+
+
